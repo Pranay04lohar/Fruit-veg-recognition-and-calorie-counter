@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+{% load static %} {%load mathfilters%}
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous" />
+    <link href="{% static 'styles.css' %}" rel="stylesheet" type="text/css" />
+    <title>Foodie Calorie Finder</title>
+</head>
+
+<body>
+    <div class="container"> 
+
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <img src="{%static 'images/logo.png'%}" class=" img-responsive logo mb-5 mt-5" />
+
+
+                {% comment %} <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" id="imageInput" accept="image/*">
+                    <button onclick="uploadImage()">Upload</button>
+                </form> {% endcomment %}
+
+
+
+<input type="file" id="imageInput" accept="image/*">
+<button onclick="uploadImage()">Upload</button> 
+<input type="hidden" id="hiddenImageUrl" name="uploaded_image_url" value="{{ uploaded_image_url }}">
+
+<!-- Display the uploaded image -->
+<img id="uploadedImage" src="" alt="Uploaded Image" style="display:none; width: 300px; margin-top: 20px;"/>
+
+
+
+<h2 id="predictedFood"></h2>
+<h3 id="calories"></h3>
+
+
+
+<script>
+    function uploadImage() {
+        let fileInput = document.getElementById("imageInput").files[0];
+        if (!fileInput) {
+            alert("Please select an image first!");
+            return;
+        }
+    
+        let formData = new FormData();
+        formData.append("image", fileInput);
+    
+        console.log("Uploading image...");
+    
+
+        // Step 1: Display the uploaded image
+        let imageDisplay = document.getElementById("uploadedImage");
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            imageDisplay.src = e.target.result;
+            imageDisplay.style.display = "block"; // Ensure the image is visible
+        };
+        reader.readAsDataURL(fileInput);
+
+
+        // Step 2: Send Image to Django Model API
+        fetch("http://127.0.0.1:8000/predict/", {  
+            method: "POST",
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Model Response:", data);
+    
+            let predictedFood = data.predicted_class;
+            if (!predictedFood) {
+                throw new Error("Model did not return a predicted food.");
+            }
+    
+            document.getElementById("predictedFood").innerText = `Predicted Food: ${predictedFood}`;
+    
+            // Step 2: Redirect to the home page with predicted food as query
+            window.location.href = `/home/?query=${encodeURIComponent(predictedFood)}`;
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert(`An error occurred: ${error.message}`);
+        });
+    }
+    </script>
+    
+
+
+<!-- JavaScript to Handle Dynamic Image Upload -->
+<script>
+    document.getElementById('imageInput').addEventListener('change', function(event) {
+        var formData = new FormData();
+        formData.append('image', event.target.files[0]);
+
+        fetch('/upload_image/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.image_url) {
+                document.getElementById('uploadedImage').src = data.image_url;
+                document.getElementById('uploadedImage').style.display = 'block';
+                document.getElementById('hiddenImageUrl').value = data.image_url; // Store URL persistently
+            }
+        })
+        .catch(error => {
+            console.error('Error uploading image:', error);
+        });
+    });
+</script>
+    
+
+                <form method = "POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="input-group input-group-lg mb-5">
+                        <input type="text" name="query" class="form-control inputstyle"
+                            placeholder="search for calories in your food..." required>
+                        <button class="btn whoop" type="submit" id="button-addon2">Find calories</button>
+                    </div>
+
+                    {% comment %} <input type="file" id="imageInput" name="image">
+                    <input type="hidden" id="hiddenImageUrl" name="uploaded_image_url" value="{{ uploaded_image_url }}"> {% endcomment %}
+
+                </form>
+
+
+                {%if api%}
+                {%if api == "oops! There was an error"%}
+                <div class="alert alert-warning"> Oh no! something went wrong.Please try again in sometime. </div>
+                {%else%}
+
+
+                {% comment %} Uploaded image {% endcomment %}
+                {% comment %} <img id="uploadedImage" src="{{ uploaded_image_url }}" alt="Uploaded Image" style="width: 300px; margin-top: 20px; display: none;"/> {% endcomment %}
+
+
+                {% if uploaded_image_url %}
+                <img id="uploadedImage" src="{{ uploaded_image_url }}" alt="Uploaded Image" style="width: 300px; margin-top: 20px;">
+                {% endif %}
+
+
+
+                
+                <h1>  
+                    {{api.items.0.name|title}} has a total of <strong> {{api.items.0.calories}} Calories</strong>
+                    {%if api.items.0.calories > 200%}
+                    <img src="{%static 'images/shocked.png'%}" class="img-responsive" />
+                    {%endif%}
+                </h1>
+                {%if api.items.0.sodium_mg >= 400%}
+                <div class="alert alert-danger d-flex align-items-center mt-3" role="alert">
+                    <div>
+                        This food contains an high amount of sodium. High Sodium cuases Sever dehydration and water
+                        retention.
+                    </div>
+                </div>
+                {%endif%}
+
+                {%if api.items.0.sugar_g >= 22.5%}
+                <div class="alert alert-danger d-flex align-items-center mt-3" role="alert">
+                    <div>
+                        This food contains an high amount of sugar.Sugar cuases insulin spikes and is no.1 cause of obesity
+                    </div>
+                </div>
+                {%endif%}
+
+            </div>
+            <div class="row justify-content-center mt-5 mb-5">
+                <div class="col-md-10 caloriescont shadow rounded">
+                    <div class="row">
+
+                        <div class="col-md-6">
+                            <h2 class="mt-3 mb-4">Nutritional Values </h2><span></span>
+                            <ul>
+                                <li class="servingsize">Serving Size per 100/Grams <span class="float-end"></span></li>
+                                <li>Carbohydrates: <span class="float-end">{{api.items.0.carbohydrates_total_g}}</span>
+                                </li>
+                                <li>Cholesterol: <span class="float-end">{{api.items.0.cholesterol_mg}}</span></li>
+                                <li>Saturated fat: <span class="float-end">{{api.items.0.fat_saturated_g}}</span></li>
+                                <li>Total Fat: <span class="float-end">{{api.items.0.fat_total_g}}</span></li>
+                                <li>Fiber Content: <span class="float-end">{{api.items.0.fiber_g}}</span></li>
+                                <li>Potassium <span class="float-end">{{api.items.0.potassium_mg}}</span></li>
+                                <li>Protein: <span class="float-end">{{api.items.0.protein_g}}<span></li>
+                                <li>Sodium:<span class="float-end">{{api.items.0.sodium_mg}}</span></li>
+                                <li>Sugar: <span class="float-end">{{api.items.0.sugar_g}}</span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mb-5">
+                            <h4 class="mt-3 mb-4">To burn {{api.items.0.calories}} calories you will have to</h4>
+                            <div class="d-flex align-items-center mb-5">
+                                <div class="flex-shrink-0">
+                                    <img src="{%static 'images/running.png'%}" alt="...">
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5> Jog </h5>
+                                    <p>you will have to jog for <strong>
+                                        {{api.items.0.calories|div:478|mul:60|floatformat:0}}</strong> Minutes</p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-5">
+                                <div class="flex-shrink-0">
+                                    <img src="{%static 'images/yoga.png'%}" alt="...">
+                                </div>
+                                <div class="flex-grow-1 ms-4">
+                                    <h5> Do Power Yoga </h5>
+                                    <p>you will have to Power Yoga for <strong>
+                                        {{api.items.0.calories|div:195|mul:60|floatformat:0}}  </strong> Minutes</p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-5">
+                                <div class="flex-shrink-0">
+                                    <img src="{%static 'images/weightlifter.png'%}" alt="...">
+                                </div>
+                                <div class="flex-grow-1 ms-4">
+                                    <h5>Get a Gym Workout </h5>
+                                    <p>you will have to lift weight for <strong>
+                                        {{api.items.0.calories|div:430|mul:60|floatformat:0}} </strong> Minutes </p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <img src="{%static 'images/walking.png'%}" alt="...">
+                                </div>
+                                <div class="flex-grow-1 ms-1">
+                                    <h5> Go for a Brisk Walk </h5>
+                                    <p>you will have to brisk walk for <strong>
+                                        {{api.items.0.calories|div:257|mul:60|floatformat:0}}</strong> Minutes</p>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        <div> 
+                            <canvas id="myChart" width='400' height = '400'></canvas>
+                        </div>
+                    </div>
+                </div>
+                {%endif %}
+                {%endif %}
+            </div>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const ctx = document.getElementById('myChart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Carbohydrates', 'Cholesterol', 'Saturated fat', 'Total Fat', 'Fiber Content', 'Potassium','Protein','Sodium','Sugar'],
+      datasets: [{
+        label: 'Nutritional Values of {{api.items.0.name|title}}',
+        data: [{{api.items.0.carbohydrates_total_g}},
+        {{api.items.0.cholesterol_mg}},
+        {{api.items.0.fat_saturated_g}},
+        {{api.items.0.fat_total_g}},
+        {{api.items.0.fiber_g}},
+        {{api.items.0.potassium_mg}},
+        {{api.items.0.protein_g}},
+        {{api.items.0.sodium_mg}},
+        {{api.items.0.sugar_g}}
+        
+        ],
+        backgroundColor: [
+      'rgba(255, 99, 133, 0.39)',
+      'rgba(255, 160, 64, 0.45)',
+      'rgba(255, 204, 86, 0.37)',
+      'rgba(75, 192, 192, 0.47)',
+      'rgba(54, 163, 235, 0.42)',
+      'rgba(153, 102, 255, 0.4)',
+      'rgba(201, 203, 207, 0.41)'
+    ],
+    borderColor: [
+      'rgb(255, 99, 132)',
+      'rgb(255, 159, 64)',
+      'rgb(255, 205, 86)',
+      'rgb(75, 192, 192)',
+      'rgb(54, 162, 235)',
+      'rgb(153, 102, 255)',
+      'rgb(201, 203, 207)'
+    ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+        responsive:true,
+        maintainAspectRatio:false,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>
