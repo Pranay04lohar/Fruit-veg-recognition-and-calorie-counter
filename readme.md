@@ -1,5 +1,8 @@
 # Demo Video
 
+https://github.com/user-attachments/assets/ed7e7e49-693f-4bc2-822e-feba2ca6e6b1
+
+
 About project:
 1.)Created a Fruit and vegetable recognition model using transfer learning and mobilenetv2 model, 
 2.)Then wrapped that model into django api for model prediction and interaction with webapp
